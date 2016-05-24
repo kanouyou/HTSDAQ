@@ -1,16 +1,19 @@
 
-from ROOT        import TFile, TTree
-from IMultiMeter import IMultiMeter, INanoMeter
-from datetime    import datetime
+from ROOT         import TFile, TTree
+from IMultiMeter  import IMultiMeter, INanoMeter
+from IPowerSupply import IPowerSupply
+from datetime     import datetime
 import matplotlib.gridspec as gridspec
 import matplotlib.dates    as md
 import matplotlib.pyplot   as plt
 import numpy               as np
 import multiprocessing     as mp
 
-MULTIMETER = "GPIB1::1::INSTR"
-NANOMETER  = "GPIB1::15::INSTR"
-SLEEPTIME  = 0.01
+MULTIMETER  = "GPIB1::1::INSTR"
+NANOMETER   = "GPIB1::15::INSTR"
+POWERSUPPLY = "GPIB1::2::INSTR"
+SLEEPTIME   = 0.001
+PROTECTION  = 0.2
 
 class ISlowDatasave:
 
@@ -35,19 +38,34 @@ class ISlowControlRun:
         self.fDet  = [IMultiMeter(), INanoMeter()]
         gpib = [NANOMETER, MULTIMETER]
         scn  = [1,2]
-
+        
+        # set multimeter
         for i in range(len(self.fDet)):
             self.fDet[i].SetGpib(gpib[i])
             if i==0:
                 self.fDet[i].SetScanner(scn)
                 self.fDet[i].SetSleepTime(SLEEPTIME)
 
+        # set power supply
+        self.fIp = 20.
+        self.fPs = IPowerSupply()
+        self.fPs.SetGpib(POWERSUPPLY)
+        self.fPs.SetProtection()
+        self.fCurr = 0.1
+        self.fPs.SetVoltage(0.05)
+        self.fPs.SetCurrent(self.fCurr)
+
         self.fData  = {"time":[], "nano1":np.array([]), "nano2":np.array([]), "multi":np.array([])}
         self.fColor = ["dodgerblue", "orangered", "greenyellow"]
+
+    def SetProtectCurrent(self, prot):
+        self.fIp = prot
 
     def Plot(self):
         shunt = 0.25e-3
         cnt = 0
+        self.fPs.TurnOn()
+
         while True:
             Vhts = self.fDet[0].Read()[0]
             Vres = self.fDet[1].Read()
@@ -102,8 +120,19 @@ class ISlowControlRun:
             if cnt%10==0:
                 plt.savefig("out.pdf")
                 print "\ndaq > number of points: %i" %cnt
-            plt.pause(0.01)
+
+            out = self.fPs.Read()
+            self.fPs.SetCurrent(self.fCurr)
+            if out[0] > self.fIp:
+                self.fPs.TurnOff()
+                plt.savefig("out.pdf")
+                print "\ndaq > warning: reached to the protection voltage." 
+                break
+
+            plt.pause(0.001)
             plt.close()
+
+            self.fCurr += 0.5
             cnt+=1
 
     def Run(self):

@@ -38,7 +38,7 @@ class IMultiMeter(INanoMeter):
     
     def __init__(self):
         INanoMeter.__init__(self)
-        self.fSleep = 0.5
+        self.fSleep = 0.05
 
     def SetScanner(self, scan):
         if len(scan) > 10:
@@ -58,5 +58,5 @@ class IMultiMeter(INanoMeter):
             r = self.fInstr.read()
             data.append(float(r))
             time.sleep(self.fSleep)
-            time.sleep(0.01)
+            #time.sleep(0.001)
         return data

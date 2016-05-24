@@ -6,7 +6,7 @@ class IPowerSupply:
     def __init__(self):
         self.fRm = visa.ResourceManager()
 
-    def SetGpib(self,Gpib):
+    def SetGpib(self,gpib):
         self.fPower = self.fRm.open_resource(gpib)
 
     def SetProtection(self,volt=5.):
@@ -20,6 +20,9 @@ class IPowerSupply:
     
     def TurnOn(self):
         w = self.fPower.write("outp ON")
+
+    def SetVoltage(self, volt):
+        w = self.fPower.write("volt %.2f" %volt)
 
     def SetCurrent(self, current):
         # read setup voltage
@@ -46,6 +49,17 @@ class IPowerSupply:
         r = self.fPower.read()
         data.append(float(r))
         w = self.fPower.write("meas:volt?")
+        r = self.fPower.read()
+        data.append(float(r))
+        return data
+
+    def ReadSetup(self):
+        # 0: current, 1: voltage
+        data = []
+        w = self.fPower.write("curr?")
+        r = self.fPower.read()
+        data.append(float(r))
+        w = self.fPower.write("volt?")
         r = self.fPower.read()
         data.append(float(r))
         return data
